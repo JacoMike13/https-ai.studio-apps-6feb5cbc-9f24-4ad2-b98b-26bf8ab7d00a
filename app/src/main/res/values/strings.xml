@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">Agenda de Audiencias - Secuestros</string>
+    <string name="sign_in_title">Agenda de Audiencias - Secuestros</string>
+    <string name="sign_in_subtitle">Control dinámico de audiencias, partes procesales, delitos y reagendamiento automático.</string>
+    <string name="sign_in_google_cta">Continuar con Google</string>
+    <string name="sign_in_hint">Inicia sesión con tu cuenta de Google para resguardar y sincronizar tu agenda judicial.</string>
+    <string name="nav_calendar">Calendario</string>
+    <string name="nav_directory">Audiencias</string>
+    <string name="nav_summary">Resumen</string>
+    <string name="new_hearing_fab">Nueva audiencia</string>
+    <string name="empty_day_title">Sin audiencias para este día</string>
+    <string name="empty_day_subtitle">Toca “Nueva audiencia” para programar una audiencia o selecciona otro día marcado en el calendario.</string>
+    <string name="empty_all_title">Tu agenda judicial está vacía</string>
+    <string name="empty_all_subtitle">Registra tu primera audiencia con sus partes procesales, delito y clasificación jurídica.</string>
+    <string name="sign_out">Cerrar sesión</string>
+</resources>

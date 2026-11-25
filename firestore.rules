@@ -1,0 +1,200 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global safety net: deny everything by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isVerifiedEmail() {
+      return isSignedIn() &&
+             request.auth.token.email_verified == true &&
+             request.auth.token.email is string &&
+             request.auth.token.email.size() > 0;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidEstado(estado) {
+      return estado in ['PROGRAMADA', 'CELEBRADA', 'DIFERIDA', 'SUSPENDIDA', 'CANCELADA'];
+    }
+
+    function isOptionalString(data, field, maxLen) {
+      return !(field in data) || (data[field] is string && data[field].size() <= maxLen);
+    }
+
+    function isValidSharedEmailsList(list) {
+      return list is list &&
+             list.size() <= 25 &&
+             (list.size() == 0 || (list[0] is string && list[0].size() <= 160));
+    }
+
+    function isValidAgenda(data, ownerUid) {
+      return data.ownerUid is string &&
+             data.ownerUid == ownerUid &&
+             data.ownerEmail is string &&
+             data.ownerEmail.size() >= 3 &&
+             data.ownerEmail.size() <= 160 &&
+             isOptionalString(data, 'ownerName', 140) &&
+             isOptionalString(data, 'appTitle', 120) &&
+             isOptionalString(data, 'calendarTitle', 120) &&
+             isOptionalString(data, 'directoryTitle', 120) &&
+             isOptionalString(data, 'summaryTitle', 120) &&
+             isValidSharedEmailsList(data.sharedEmails);
+    }
+
+    function isValidAudiencia(data, userId) {
+      return data.userId is string &&
+             data.userId == userId &&
+             data.tipoAudiencia is string &&
+             data.tipoAudiencia.size() >= 1 &&
+             data.tipoAudiencia.size() <= 120 &&
+             data.fechaHoraMillis is int &&
+             data.fechaHoraMillis > 0 &&
+             data.estado is string &&
+             isValidEstado(data.estado) &&
+             data.tieneProximaFecha is bool &&
+             (!('sharedEmails' in data) || isValidSharedEmailsList(data.sharedEmails)) &&
+             isOptionalString(data, 'nuc', 80) &&
+             isOptionalString(data, 'numeroCausa', 80) &&
+             isOptionalString(data, 'salaOJuzgado', 120) &&
+             isOptionalString(data, 'juez', 140) &&
+             isOptionalString(data, 'ministerioPublico', 140) &&
+             isOptionalString(data, 'asesorJuridico', 140) &&
+             isOptionalString(data, 'victima', 140) &&
+             isOptionalString(data, 'defensor', 140) &&
+             isOptionalString(data, 'imputado', 140) &&
+             isOptionalString(data, 'tipoDelito', 160) &&
+             isOptionalString(data, 'clasificacionJuridica', 400) &&
+             isOptionalString(data, 'resultado', 2000) &&
+             isOptionalString(data, 'proximoTipoAudiencia', 120) &&
+             (!('proximaFechaMillis' in data) || (data.proximaFechaMillis is int && data.proximaFechaMillis > 0)) &&
+             (!('audienciaOrigenId' in data) || isValidId(data.audienciaOrigenId)) &&
+             (!('audienciaSiguienteId' in data) || isValidId(data.audienciaSiguienteId)) &&
+             (!data.tieneProximaFecha || ('proximaFechaMillis' in data && data.proximaFechaMillis is int && data.proximaFechaMillis > 0));
+    }
+
+    match /agendas/{ownerUid} {
+      allow get: if isValidId(ownerUid) && (
+        isOwner(ownerUid) ||
+        (isVerifiedEmail() && request.auth.token.email.lower() in existing().sharedEmails)
+      );
+
+      allow list: if isSignedIn() && (
+        existing().ownerUid == request.auth.uid ||
+        (isVerifiedEmail() && request.auth.token.email.lower() in existing().sharedEmails)
+      );
+
+      allow create: if isOwner(ownerUid) &&
+                       isValidId(ownerUid) &&
+                       incoming().keys().hasAll([
+                         'ownerUid', 'ownerEmail', 'sharedEmails', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'ownerUid', 'ownerEmail', 'ownerName',
+                         'appTitle', 'calendarTitle', 'directoryTitle', 'summaryTitle',
+                         'sharedEmails', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().createdAt is timestamp &&
+                       incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp &&
+                       incoming().updatedAt <= request.time &&
+                       isValidAgenda(incoming(), ownerUid);
+
+      allow update: if isOwner(ownerUid) &&
+                       isValidId(ownerUid) &&
+                       incoming().ownerUid == existing().ownerUid &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt is timestamp &&
+                       incoming().updatedAt <= request.time &&
+                       isValidAgenda(incoming(), ownerUid) &&
+                       incoming().keys().hasOnly([
+                         'ownerUid', 'ownerEmail', 'ownerName',
+                         'appTitle', 'calendarTitle', 'directoryTitle', 'summaryTitle',
+                         'sharedEmails', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'ownerEmail', 'ownerName',
+                         'appTitle', 'calendarTitle', 'directoryTitle', 'summaryTitle',
+                         'sharedEmails', 'updatedAt'
+                       ]);
+
+      allow delete: if isOwner(ownerUid) && isValidId(ownerUid);
+    }
+
+    match /users/{userId}/audiencias/{audienciaId} {
+      // Owner lists all directly via isOwner(userId); invited Gmail accounts query via whereArrayContains("sharedEmails", email)
+      allow list: if isOwner(userId) ||
+                     (isVerifiedEmail() && request.auth.token.email.lower() in existing().sharedEmails);
+
+      allow get: if isValidId(audienciaId) && (
+        isOwner(userId) ||
+        (isVerifiedEmail() && 'sharedEmails' in existing() && request.auth.token.email.lower() in existing().sharedEmails)
+      );
+
+      allow create: if isOwner(userId) &&
+                       isValidId(audienciaId) &&
+                       incoming().keys().hasAll([
+                         'userId', 'tipoAudiencia', 'fechaHoraMillis', 'estado',
+                         'tieneProximaFecha', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'sharedEmails', 'nuc', 'numeroCausa', 'tipoAudiencia', 'fechaHoraMillis',
+                         'salaOJuzgado', 'juez', 'ministerioPublico', 'asesorJuridico',
+                         'victima', 'defensor', 'imputado', 'tipoDelito',
+                         'clasificacionJuridica', 'estado', 'resultado',
+                         'tieneProximaFecha', 'proximaFechaMillis', 'proximoTipoAudiencia',
+                         'audienciaOrigenId', 'audienciaSiguienteId', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().createdAt is timestamp &&
+                       incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp &&
+                       incoming().updatedAt <= request.time &&
+                       isValidAudiencia(incoming(), userId);
+
+      allow update: if isOwner(userId) &&
+                       isValidId(audienciaId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt is timestamp &&
+                       incoming().updatedAt <= request.time &&
+                       isValidAudiencia(incoming(), userId) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'sharedEmails', 'nuc', 'numeroCausa', 'tipoAudiencia', 'fechaHoraMillis',
+                         'salaOJuzgado', 'juez', 'ministerioPublico', 'asesorJuridico',
+                         'victima', 'defensor', 'imputado', 'tipoDelito',
+                         'clasificacionJuridica', 'estado', 'resultado',
+                         'tieneProximaFecha', 'proximaFechaMillis', 'proximoTipoAudiencia',
+                         'audienciaOrigenId', 'audienciaSiguienteId', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'sharedEmails', 'nuc', 'numeroCausa', 'tipoAudiencia', 'fechaHoraMillis',
+                         'salaOJuzgado', 'juez', 'ministerioPublico', 'asesorJuridico',
+                         'victima', 'defensor', 'imputado', 'tipoDelito',
+                         'clasificacionJuridica', 'estado', 'resultado',
+                         'tieneProximaFecha', 'proximaFechaMillis', 'proximoTipoAudiencia',
+                         'audienciaSiguienteId', 'updatedAt'
+                       ]);
+
+      allow delete: if isOwner(userId) && isValidId(audienciaId);
+    }
+  }
+}

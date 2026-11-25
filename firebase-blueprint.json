@@ -1,0 +1,185 @@
+{
+  "entities": {
+    "AgendaCompartida": {
+      "title": "Agenda Compartida",
+      "description": "Configuración de acceso compartido de la cuenta principal hacia cuentas de Google mediante correo electrónico Gmail (solo lectura para invitados).",
+      "type": "object",
+      "properties": {
+        "ownerUid": {
+          "type": "string",
+          "description": "UID de la cuenta principal propietaria de la agenda"
+        },
+        "ownerEmail": {
+          "type": "string",
+          "description": "Correo electrónico de la cuenta principal en minúsculas"
+        },
+        "ownerName": {
+          "type": "string",
+          "description": "Nombre visible de la cuenta principal"
+        },
+        "appTitle": {
+          "type": "string",
+          "description": "Título principal personalizado de la aplicación"
+        },
+        "calendarTitle": {
+          "type": "string",
+          "description": "Título personalizado de la sección de calendario"
+        },
+        "directoryTitle": {
+          "type": "string",
+          "description": "Título personalizado de la sección de audiencias o consulta"
+        },
+        "summaryTitle": {
+          "type": "string",
+          "description": "Título personalizado de la sección de resumen"
+        },
+        "sharedEmails": {
+          "type": "array",
+          "description": "Lista de correos Gmail autorizados para visualizar esta agenda en tiempo real (máximo 25)"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Marca de tiempo del servidor al crear (FieldValue.serverTimestamp())"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Marca de tiempo del servidor al actualizar (FieldValue.serverTimestamp())"
+        }
+      },
+      "required": [
+        "ownerUid",
+        "ownerEmail",
+        "sharedEmails",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Audiencia": {
+      "title": "Audiencia Penal",
+      "description": "Registro de audiencia penal con categorización en calendario, partes procesales, delito, clasificación jurídica, resultado, reagendamiento automático y correos autorizados para visualización.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "UID del usuario autenticado propietario del registro"
+        },
+        "sharedEmails": {
+          "type": "array",
+          "description": "Lista denormalizada de correos Gmail con acceso de lectura a esta audiencia (máximo 25)"
+        },
+        "nuc": {
+          "type": "string",
+          "description": "Número Único de Caso (NUC) editable manualmente"
+        },
+        "numeroCausa": {
+          "type": "string",
+          "description": "Causa Penal asignada a la audiencia"
+        },
+        "tipoAudiencia": {
+          "type": "string",
+          "description": "Categoría o tipo de audiencia penal (ej. Control de Detención, Vinculación a Proceso, Juicio Oral)"
+        },
+        "fechaHoraMillis": {
+          "type": "integer",
+          "description": "Fecha y hora programada de la audiencia en milisegundos epoch"
+        },
+        "salaOJuzgado": {
+          "type": "string",
+          "description": "Sala o juzgado asignado"
+        },
+        "juez": {
+          "type": "string",
+          "description": "Nombre del Juez"
+        },
+        "ministerioPublico": {
+          "type": "string",
+          "description": "Nombre del agente del Ministerio Público"
+        },
+        "asesorJuridico": {
+          "type": "string",
+          "description": "Nombre del Asesor Jurídico"
+        },
+        "victima": {
+          "type": "string",
+          "description": "Nombre de la Víctima u ofendido"
+        },
+        "defensor": {
+          "type": "string",
+          "description": "Nombre del Defensor"
+        },
+        "imputado": {
+          "type": "string",
+          "description": "Nombre del Imputado"
+        },
+        "tipoDelito": {
+          "type": "string",
+          "description": "Tipo de delito materia de la audiencia"
+        },
+        "clasificacionJuridica": {
+          "type": "string",
+          "description": "Clasificación jurídica del delito (tipo penal, modalidad, grado de ejecución, autoría)"
+        },
+        "estado": {
+          "type": "string",
+          "enum": ["PROGRAMADA", "CELEBRADA", "DIFERIDA", "SUSPENDIDA", "CANCELADA"],
+          "description": "Estado actual de la audiencia"
+        },
+        "resultado": {
+          "type": "string",
+          "description": "Resultado y acuerdos tomados en la audiencia"
+        },
+        "tieneProximaFecha": {
+          "type": "boolean",
+          "description": "Indica si el resultado incluye una próxima fecha programada"
+        },
+        "proximaFechaMillis": {
+          "type": "integer",
+          "description": "Fecha y hora de la próxima audiencia programada en milisegundos epoch (opcional)"
+        },
+        "proximoTipoAudiencia": {
+          "type": "string",
+          "description": "Tipo de la próxima audiencia programada automáticamente"
+        },
+        "audienciaOrigenId": {
+          "type": "string",
+          "description": "ID de la audiencia origen que generó automáticamente este registro (opcional)"
+        },
+        "audienciaSiguienteId": {
+          "type": "string",
+          "description": "ID de la audiencia siguiente agendada automáticamente desde este resultado (opcional)"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Marca de tiempo del servidor al crear (FieldValue.serverTimestamp())"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Marca de tiempo del servidor al actualizar (FieldValue.serverTimestamp())"
+        }
+      },
+      "required": [
+        "userId",
+        "tipoAudiencia",
+        "fechaHoraMillis",
+        "estado",
+        "tieneProximaFecha",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/agendas/{ownerUid}": {
+      "schema": { "$ref": "#/entities/AgendaCompartida" },
+      "description": "Configuración de correos Gmail autorizados para visualizar la agenda de un propietario"
+    },
+    "/users/{userId}/audiencias/{audienciaId}": {
+      "schema": { "$ref": "#/entities/Audiencia" },
+      "description": "Audiencias penales del propietario con acceso de lectura compartido a correos Gmail autorizados"
+    }
+  }
+}
